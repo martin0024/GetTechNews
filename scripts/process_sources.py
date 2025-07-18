@@ -6,12 +6,12 @@ import subprocess
 from discord_webhook import DiscordWebhook
 from playwright.async_api import async_playwright
 from dotenv import load_dotenv
-import openai
 from xml.etree.ElementTree import Element, SubElement, tostring
 import datetime
+from openai import OpenAI
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 with open("news.json") as f:
@@ -51,12 +51,12 @@ Return Python code that prints a list of dictionaries like:
 HTML:
 {html[:4000]}
 """
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3
         )
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
     except Exception as e:
         log_error(f"OpenAI generation failed for {site_name}: {e}")
         return None
