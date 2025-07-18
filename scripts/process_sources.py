@@ -34,7 +34,7 @@ def log_error(msg):
 async def fetch_html(url):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto(url, timeout=60000)
             html = await page.content()
@@ -52,8 +52,9 @@ def generate_scraper(site_name, html):
 Write only valid Python code — do not include explanations or markdown formatting.
 
 You are a Python developer. Generate a script that extracts article titles, publication dates (if available), and links from the following blog HTML page.
+In the script the HTML will be provided as a string variable named `html`. Please include all the html that i gave you below. Get the structure of the HTML and identify the elements that contain the article title, link, and date (if available). Use BeautifulSoup for parsing the HTML.
 
-IT SHOULD RETURN Python code that prints a list of dictionaries like:
+IT SHOULD RETURN Python code (please dont include the markdown like ```python```) that prints a list of dictionaries like:
 [{{"title": ..., "link": ..., "date": ...}}, ...]
 
 HTML:
@@ -77,6 +78,17 @@ def commit_scraper(name):
         subprocess.run(["git", "add", f"scrapers/{name}.py"])
         subprocess.run(["git", "add", f"feeds/seen_{name}.json"])
         subprocess.run(["git", "commit", "-m", f"🤖 Add scraper and seen file for {name}"], check=False)
+        subprocess.run(["git", "push"], check=False)
+    except Exception as e:
+        log_error(f"Git commit failed for {name}: {e}")
+
+def commit_seen(name):
+    logging.info(f"Committing seen articles for {name}")
+    try:
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions"])
+        subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"])
+        subprocess.run(["git", "add", f"feeds/seen_{name}.json"])
+        subprocess.run(["git", "commit", "-m", f"🤖 Update seen articles for {name}"], check=False)
         subprocess.run(["git", "push"], check=False)
     except Exception as e:
         log_error(f"Git commit failed for {name}: {e}")
@@ -116,7 +128,7 @@ async def main():
                 feed = feedparser.parse(rss_url)
                 if feed.entries:
                     logging.info(f"[{name}] Latest: {feed.entries[0].title}")
-                    latest = feed.entries[0]
+                    latests = feed.entries[10]
                     seen_path = f"feeds/seen_{name}.json"
                     logging.info(f"[{name}] Seen articles file: {seen_path}")
                     seen = []
@@ -124,14 +136,21 @@ async def main():
                         logging.info(f"[{name}] Seen articles file found.")
                         with open(seen_path) as f:
                             seen = json.load(f)
-                    if latest.link not in seen:
-                        logging.info(f"[NEW] {latest.title}")
-                        seen.append(latest.link)
+                    
+                    new_articles_found = False
+                    for latest in latests:
+                        if latest.link not in seen:
+                            logging.info(f"[NEW] {latest.title}")
+                            seen.append(latest.link)
+                            new_articles_found = True
+                            notify_discord(f"📰 New article on {name.title()}: {latest.title} → {latest.link}")
+                    
+                    if new_articles_found:
                         with open(seen_path, "w") as f:
                             json.dump(seen, f, indent=2)
+                        commit_seen(name)
                         logging.info(f"Saving RSS feed for {name}")
-                        logging.info(f"Saving RSS feed for {name} to feeds/{name}.xml")    
-                        notify_discord(f"📰 New article on {name.title()}: {latest.title} → {latest.link}")
+                        logging.info(f"Saving RSS feed for {name} to feeds/{name}.xml")
             except Exception as e:
                 log_error(f"RSS parsing failed for {name}: {e}")
         else:
@@ -159,13 +178,20 @@ async def main():
                     logging.info(f"Loading seen articles from {seen_path}")
                     with open(seen_path) as f:
                         seen = json.load(f)
+                
+                new_articles_found = False
                 for article in articles:
                     logging.info(f"Processing article: {article['title']}")
                     if article['link'] not in seen:
                         seen.append(article['link'])
+                        new_articles_found = True
                         notify_discord(f"📰 New article on {name.title()}: {article['title']} → {article['link']}")
-                with open(seen_path, "w") as f:
-                    json.dump(seen, f, indent=2)
+                
+                if new_articles_found:
+                    with open(seen_path, "w") as f:
+                        json.dump(seen, f, indent=2)
+                    commit_seen(name)
+                
                 save_rss(name, url, articles)
             except Exception as e:
                 log_error(f"Scraper failed for {name}: {e}")
