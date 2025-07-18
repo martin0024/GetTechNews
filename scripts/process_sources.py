@@ -128,7 +128,7 @@ async def main():
                 feed = feedparser.parse(rss_url)
                 if feed.entries:
                     logging.info(f"[{name}] Latest: {feed.entries[0].title}")
-                    latests = feed.entries[10]
+                    latests = feed.entries[:10]
                     seen_path = f"feeds/seen_{name}.json"
                     logging.info(f"[{name}] Seen articles file: {seen_path}")
                     seen = []
