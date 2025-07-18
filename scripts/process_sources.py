@@ -44,7 +44,10 @@ async def fetch_html(url):
 def generate_scraper(site_name, html):
     try:
         prompt = f"""
+Write only valid Python code — do not include explanations or markdown formatting.
+
 You are a Python developer. Generate a script that extracts article titles, publication dates (if available), and links from the following blog HTML page.
+
 Return Python code that prints a list of dictionaries like:
 [{{"title": ..., "link": ..., "date": ...}}, ...]
 
