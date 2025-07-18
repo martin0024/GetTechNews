@@ -1,0 +1,12 @@
+[
+    {
+        "name": "OpenAI",
+        "url": "https://openai.com/news",
+        "rss": "https://openai.com/news/rss.xml"
+    },
+    {
+        "name": "Anthropic",
+        "url": "https://www.anthropic.com/index/news",
+        "rss": null
+    }
+]

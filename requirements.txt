@@ -1,0 +1,7 @@
+feedparser
+requests
+beautifulsoup4
+playwright
+discord-webhook
+openai
+python-dotenv
