@@ -49,12 +49,11 @@ async def fetch_html(url):
 def generate_scraper(site_name, html):
     try:
         prompt = f"""
-Write only valid Python code — do not include explanations or markdown formatting.
-
+Generate a Python script that uses BeautifulSoup to parse the following HTML and extract article titles, publication dates (if available), and links.
 You are a Python developer. Generate a script that extracts article titles, publication dates (if available), and links from the following blog HTML page.
 In the script the HTML will be provided as a string variable named `html`. Please include all the html that i gave you below. Get the structure of the HTML and identify the elements that contain the article title, link, and date (if available). Use BeautifulSoup for parsing the HTML.
 
-IT SHOULD RETURN Python code (please dont include the markdown like ```python```) that prints a list of dictionaries like:
+IT SHOULD RETURN Python code  that prints a list of dictionaries like:
 [{{"title": ..., "link": ..., "date": ...}}, ...]
 
 HTML:
@@ -73,8 +72,8 @@ HTML:
 def commit_scraper(name):
     logging.info(f"Committing scraper for {name}")
     try:
-        subprocess.run(["git", "config", "--global", "user.name", "github-actions"])
-        subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"])
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"])
+        subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"])
         subprocess.run(["git", "add", f"scrapers/{name}.py"])
         subprocess.run(["git", "add", f"feeds/seen_{name}.json"])
         subprocess.run(["git", "commit", "-m", f"🤖 Add scraper and seen file for {name}"], check=False)
@@ -85,8 +84,8 @@ def commit_scraper(name):
 def commit_seen(name):
     logging.info(f"Committing seen articles for {name}")
     try:
-        subprocess.run(["git", "config", "--global", "user.name", "github-actions"])
-        subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"])
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"])
+        subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"])
         subprocess.run(["git", "add", f"feeds/seen_{name}.json"])
         subprocess.run(["git", "commit", "-m", f"🤖 Update seen articles for {name}"], check=False)
         subprocess.run(["git", "push"], check=False)
@@ -163,6 +162,7 @@ async def main():
                 code = generate_scraper(name, html)
                 if code:
                     logging.info(f"Writing scraper code for {name} to {scraper_path}")
+                    code = code.strip().removeprefix("```python").removesuffix("```").strip()
                     with open(scraper_path, "w") as f:
                         f.write(code)
                     commit_scraper(name)
