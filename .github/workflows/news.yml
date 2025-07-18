@@ -25,5 +25,8 @@ jobs:
           playwright install
 
       - name: Run News Pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python scripts/process_sources.py
