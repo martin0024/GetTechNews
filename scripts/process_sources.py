@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 from xml.etree.ElementTree import Element, SubElement, tostring
 import datetime
 from openai import OpenAI
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -31,10 +34,12 @@ def log_error(msg):
 async def fetch_html(url):
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch()
+            browser = await p.chromium.launch(headless=False)
             page = await browser.new_page()
             await page.goto(url, timeout=60000)
             html = await page.content()
+            logging.info(f"Fetched HTML for {url}")
+            logging.info(f"HTML length: {len(html)} characters")
             await browser.close()
             return html
     except Exception as e:
@@ -48,11 +53,11 @@ Write only valid Python code — do not include explanations or markdown formatt
 
 You are a Python developer. Generate a script that extracts article titles, publication dates (if available), and links from the following blog HTML page.
 
-Return Python code that prints a list of dictionaries like:
+IT SHOULD RETURN Python code that prints a list of dictionaries like:
 [{{"title": ..., "link": ..., "date": ...}}, ...]
 
 HTML:
-{html[:4000]}
+{html}
 """
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -65,6 +70,7 @@ HTML:
         return None
 
 def commit_scraper(name):
+    logging.info(f"Committing scraper for {name}")
     try:
         subprocess.run(["git", "config", "--global", "user.name", "github-actions"])
         subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"])
@@ -105,28 +111,39 @@ async def main():
         rss_url = source.get("rss")
 
         if rss_url:
+            logging.info(f"Processing RSS feed for {name} from {rss_url}")
             try:
                 feed = feedparser.parse(rss_url)
                 if feed.entries:
+                    logging.info(f"[{name}] Latest: {feed.entries[0].title}")
                     latest = feed.entries[0]
                     seen_path = f"feeds/seen_{name}.json"
+                    logging.info(f"[{name}] Seen articles file: {seen_path}")
                     seen = []
                     if os.path.exists(seen_path):
+                        logging.info(f"[{name}] Seen articles file found.")
                         with open(seen_path) as f:
                             seen = json.load(f)
                     if latest.link not in seen:
+                        logging.info(f"[NEW] {latest.title}")
                         seen.append(latest.link)
                         with open(seen_path, "w") as f:
                             json.dump(seen, f, indent=2)
+                        logging.info(f"Saving RSS feed for {name}")
+                        logging.info(f"Saving RSS feed for {name} to feeds/{name}.xml")    
                         notify_discord(f"📰 New article on {name.title()}: {latest.title} → {latest.link}")
             except Exception as e:
                 log_error(f"RSS parsing failed for {name}: {e}")
         else:
+            logging.info(f"Processing scraper for {name} from {url}")
             scraper_path = f"scrapers/{name}.py"
             if not os.path.exists(scraper_path):
+                logging.info(f"Generating scraper for {name}")
                 html = await fetch_html(url)
+                logging.info(f"Found HTML for {name}, generating scraper code")
                 code = generate_scraper(name, html)
                 if code:
+                    logging.info(f"Writing scraper code for {name} to {scraper_path}")
                     with open(scraper_path, "w") as f:
                         f.write(code)
                     commit_scraper(name)
@@ -134,12 +151,16 @@ async def main():
             try:
                 result = os.popen(f"python scrapers/{name}.py").read()
                 articles = json.loads(result)
+                logging.info(f"Scraper for {name} returned {len(articles)} articles")
                 seen_path = f"feeds/seen_{name}.json"
                 seen = []
                 if os.path.exists(seen_path):
+                    logging.info(f"Seen articles file found for {name}.")
+                    logging.info(f"Loading seen articles from {seen_path}")
                     with open(seen_path) as f:
                         seen = json.load(f)
                 for article in articles:
+                    logging.info(f"Processing article: {article['title']}")
                     if article['link'] not in seen:
                         seen.append(article['link'])
                         notify_discord(f"📰 New article on {name.title()}: {article['title']} → {article['link']}")
