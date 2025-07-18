@@ -66,7 +66,8 @@ def commit_scraper(name):
         subprocess.run(["git", "config", "--global", "user.name", "github-actions"])
         subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"])
         subprocess.run(["git", "add", f"scrapers/{name}.py"])
-        subprocess.run(["git", "commit", "-m", f"🤖 Add scraper for {name}"], check=False)
+        subprocess.run(["git", "add", f"feeds/seen_{name}.json"])
+        subprocess.run(["git", "commit", "-m", f"🤖 Add scraper and seen file for {name}"], check=False)
         subprocess.run(["git", "push"], check=False)
     except Exception as e:
         log_error(f"Git commit failed for {name}: {e}")
