@@ -48,8 +48,7 @@ async def fetch_html(url):
 
 async def generate_scraper(site_name, html, url):
     try:
-        prompt = f"""
-You are a Python developer. I will give you some raw HTML (below) as an example to help you understand the structure of the webpage.
+        prompt = f"""You are a Python developer. I will give you some raw HTML (below) as an example to help you understand the structure of the webpage.
 
 Your task is to generate a Python script that:
 - Uses the `requests` library to fetch HTML from the target URL (you will need to include the full URL in the script).
@@ -59,22 +58,24 @@ Your task is to generate a Python script that:
     - The link (full URL)
     - The publication date, if available
 - Outputs the extracted data as a list of dictionaries in the format:
-  ```python
   [
-    {"title": "...", "link": "...", "date": "..."},
+    {{"title": "...", "link": "...", "date": "..."}},
     ...
   ]
 
 HTML:
-{html}
+{html[:100000]}
 Website URL: {url}
 """
-        response = await client.responses.create(
-            model="gpt-4.1-mini",
-            input=prompt,
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
         )
         print(f"OpenAI generation response: {response}")
-        return response.output_text
+        return response.choices[0].message.content
     except Exception as e:
         log_error(f"OpenAI generation failed for {site_name}: {e}")
         return None
@@ -178,8 +179,17 @@ async def main():
                     commit_scraper(name)
 
             try:
-                result = os.popen(f"python scrapers/{name}.py").read()
-                articles = json.loads(result)
+                result = subprocess.run(
+                    ["python", f"scrapers/{name}.py"], 
+                    capture_output=True, 
+                    text=True, 
+                    cwd=os.getcwd()
+                )
+                if result.returncode != 0:
+                    log_error(f"Scraper execution failed for {name}: {result.stderr}")
+                    continue
+                
+                articles = json.loads(result.stdout)
                 logging.info(f"Scraper for {name} returned {len(articles)} articles")
                 seen_path = f"feeds/seen_{name}.json"
                 seen = []
