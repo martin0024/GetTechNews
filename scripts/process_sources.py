@@ -48,34 +48,48 @@ async def fetch_html(url):
 
 async def generate_scraper(site_name, html, url):
     try:
-        prompt = f"""You are a Python developer. I will give you some raw HTML (below) as an example to help you understand the structure of the webpage.
+        prompt = f"""You are a Python developer. Generate ONLY the Python code with no explanation or markdown formatting.
 
-Your task is to generate a Python script that:
-- Uses the `requests` library to fetch HTML from the target URL (you will need to include the full URL in the script).
-- Uses `BeautifulSoup` to parse the HTML.
-- Extracts all articles from the page. For each article, extract:
-    - The title
-    - The link (full URL)
-    - The publication date, if available
-- Outputs the extracted data as a list of dictionaries in the format:
-  [
-    {{"title": "...", "link": "...", "date": "..."}},
-    ...
-  ]
+Create a Python script that:
+- Uses the `requests` library to fetch HTML from the target URL: {url}
+- Uses `BeautifulSoup` to parse the HTML
+- Extracts all articles from the page, getting the title, link (full URL), and publication date if available
+- Outputs the extracted data as JSON using: print(json.dumps(articles, indent=2))
 
-HTML:
-{html[:100000]}
-Website URL: {url}
+Return ONLY the Python code, no explanation, no markdown blocks, no comments explaining what the code does.
+
+HTML structure sample:
+{html[:8000]}
 """
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
+                {"role": "system", "content": "You are a code generator. Return only Python code with no explanation, no markdown formatting, no code blocks. The code should be ready to execute directly."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3
+            temperature=0.1
         )
-        print(f"OpenAI generation response: {response}")
-        return response.choices[0].message.content
+        
+        code = response.choices[0].message.content.strip()
+        
+        if code.startswith("```python"):
+            code = code[9:]
+        if code.startswith("```"):
+            code = code[3:]
+        if code.endswith("```"):
+            code = code[:-3]
+        
+        lines = code.split('\n')
+        start_idx = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith('import ') or line.strip().startswith('from '):
+                start_idx = i
+                break
+        
+        if start_idx > 0:
+            code = '\n'.join(lines[start_idx:])
+        
+        return code.strip()
     except Exception as e:
         log_error(f"OpenAI generation failed for {site_name}: {e}")
         return None
@@ -173,9 +187,14 @@ async def main():
                 code = await generate_scraper(name, html, url)
                 if code:
                     logging.info(f"Writing scraper code for {name} to {scraper_path}")
-                    code = code.strip().removeprefix("```python").removesuffix("```").strip()
                     with open(scraper_path, "w") as f:
                         f.write(code)
+                    
+                    seen_path = f"feeds/seen_{name}.json"
+                    if not os.path.exists(seen_path):
+                        with open(seen_path, "w") as f:
+                            json.dump([], f)
+                    
                     commit_scraper(name)
 
             try:
