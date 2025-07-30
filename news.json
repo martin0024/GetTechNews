@@ -8,5 +8,10 @@
         "name": "Anthropic",
         "url": "https://www.anthropic.com/news",
         "rss": null
+    },
+    {
+        "name": "Cursor",
+        "url": "https://cursor.com/blog",
+        "rss": null
     }
 ]

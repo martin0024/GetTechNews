@@ -46,18 +46,28 @@ async def fetch_html(url):
         log_error(f"Playwright failed for {url}: {e}")
         return ""
 
-async def generate_scraper(site_name, html):
+async def generate_scraper(site_name, html, url):
     try:
         prompt = f"""
-Generate a Python script that uses BeautifulSoup to parse the following HTML and extract article titles, publication dates (if available), and links.
-You are a Python developer. Generate a script that extracts article titles, publication dates (if available), and links from the following blog HTML page.
-In the script the HTML will be provided as a string variable named `html`. Please include all the html that i gave you below. Get the structure of the HTML and identify the elements that contain the article title, link, and date (if available). Use BeautifulSoup for parsing the HTML.
+You are a Python developer. I will give you some raw HTML (below) as an example to help you understand the structure of the webpage.
 
-IT SHOULD RETURN Python code  that prints a list of dictionaries like:
-[{{"title": ..., "link": ..., "date": ...}}, ...]
+Your task is to generate a Python script that:
+- Uses the `requests` library to fetch HTML from the target URL (you will need to include the full URL in the script).
+- Uses `BeautifulSoup` to parse the HTML.
+- Extracts all articles from the page. For each article, extract:
+    - The title
+    - The link (full URL)
+    - The publication date, if available
+- Outputs the extracted data as a list of dictionaries in the format:
+  ```python
+  [
+    {"title": "...", "link": "...", "date": "..."},
+    ...
+  ]
 
 HTML:
 {html}
+Website URL: {url}
 """
         response = await client.responses.create(
             model="gpt-4.1-mini",
@@ -159,7 +169,7 @@ async def main():
                 logging.info(f"Generating scraper for {name}")
                 html = await fetch_html(url)
                 logging.info(f"Found HTML for {name}, generating scraper code")
-                code = await generate_scraper(name, html)
+                code = await generate_scraper(name, html, url)
                 if code:
                     logging.info(f"Writing scraper code for {name} to {scraper_path}")
                     code = code.strip().removeprefix("```python").removesuffix("```").strip()
