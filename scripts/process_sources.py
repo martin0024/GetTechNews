@@ -51,8 +51,9 @@ async def generate_scraper(site_name, html, url):
         prompt = f"""You are a Python developer. Generate ONLY the Python code with no explanation or markdown formatting.
 
 Create a Python script that:
-- Uses the `requests` library to fetch HTML from the target URL: {url}
-- Uses `BeautifulSoup` to parse the HTML
+- Uses the `playwright` library to launch a headless browser and load the target URL: {url}
+- Waits for the news content to be fully loaded
+- Uses `BeautifulSoup` to parse the final rendered HTML
 - Extracts all articles from the page, getting the title, link (full URL), and publication date if available
 - Outputs the extracted data as JSON using: print(json.dumps(articles, indent=2))
 
