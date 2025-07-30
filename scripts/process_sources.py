@@ -46,7 +46,7 @@ async def fetch_html(url):
         log_error(f"Playwright failed for {url}: {e}")
         return ""
 
-def generate_scraper(site_name, html):
+async def generate_scraper(site_name, html):
     try:
         prompt = f"""
 Generate a Python script that uses BeautifulSoup to parse the following HTML and extract article titles, publication dates (if available), and links.
@@ -59,12 +59,12 @@ IT SHOULD RETURN Python code  that prints a list of dictionaries like:
 HTML:
 {html}
 """
-        response = client.chat.completions.create(
+        response = await client.responses.create(
             model="gpt-4.1-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            input=prompt,
         )
-        return response.choices[0].message.content
+        print(f"OpenAI generation response: {response}")
+        return response.output_text
     except Exception as e:
         log_error(f"OpenAI generation failed for {site_name}: {e}")
         return None
@@ -159,7 +159,7 @@ async def main():
                 logging.info(f"Generating scraper for {name}")
                 html = await fetch_html(url)
                 logging.info(f"Found HTML for {name}, generating scraper code")
-                code = generate_scraper(name, html)
+                code = await generate_scraper(name, html)
                 if code:
                     logging.info(f"Writing scraper code for {name} to {scraper_path}")
                     code = code.strip().removeprefix("```python").removesuffix("```").strip()
