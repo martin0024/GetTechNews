@@ -59,7 +59,7 @@ Create a Python script that:
 Return ONLY the Python code, no explanation, no markdown blocks, no comments explaining what the code does.
 
 HTML structure sample:
-{html[:100000]}
+{html}
 """
         response = client.chat.completions.create(
             model="gpt-4o-mini",
